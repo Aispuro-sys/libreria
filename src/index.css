@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Anton", "Impact", "Arial Narrow Bold", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Paleta oscura: el negro domina, los detalles son grises tirando a blanco */
+  --color-paper: #0b0b0d;   /* fondo de página (grafito casi negro) */
+  --color-ink: #0a0a0a;     /* negro puro — texto sobre superficies claras */
+  --color-mist: #f4f4f5;    /* texto claro sobre fondo oscuro */
+  --color-steel-50: #141416;
+  --color-steel-100: #232327;
+  --color-steel-200: #3a3a41;
+  --color-steel-300: #52525b;
+  --color-steel-400: #6f6f78;
+  --color-steel-500: #9b9ba2;
+  --color-steel-600: #c4c4c9;
+  --color-steel-700: #e0e0e3;
+  --color-steel-800: #f1f1f2;
+  --color-steel-900: #fafafa;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--color-paper);
+    color: var(--color-mist);
+  }
+
+  body {
+    background-color: var(--color-paper);
+    overflow-x: hidden;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background: var(--color-mist);
+    color: var(--color-ink);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-steel-50); }
+::-webkit-scrollbar-thumb { background: var(--color-steel-300); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-steel-400); }
+
+/* ---------- Acabados metálicos ---------- */
+
+/* Superficie plateada (claro) — ideal para badges, bordes y tarjetas destacadas */
+.metal {
+  background: linear-gradient(135deg, #ffffff 0%, #d9d9de 28%, #f7f7f8 50%, #b9b9c0 74%, #ececef 100%);
+}
+
+/* Superficie grafito (oscuro) — para secciones negras */
+.metal-dark {
+  background: linear-gradient(135deg, #3b3b42 0%, #141416 40%, #2a2a30 60%, #0a0a0a 100%);
+}
+
+/* Texto con degradado plateado (sobre fondo oscuro) */
+.metal-text {
+  background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #8e8e96 70%, #e4e4e7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+  padding: 0.25em 0.06em;
+  margin: -0.25em -0.06em;
+  line-height: 1.05;
+}
+
+/* Texto con degradado grafito (sobre fondo claro) */
+.metal-text-dark {
+  background: linear-gradient(180deg, #0a0a0a 0%, #3a3a41 50%, #0a0a0a 75%, #52525b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+  padding: 0.25em 0.06em;
+  margin: -0.25em -0.06em;
+  line-height: 1.05;
+}
+
+/* Contenedor de página */
+.wrap {
+  width: 100%;
+  max-width: 1760px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 640px) { .wrap { padding-inline: 2rem; } }
+@media (min-width: 1024px) { .wrap { padding-inline: 3rem; } }
+@media (min-width: 1536px) { .wrap { padding-inline: 4rem; } }
+
+/* Borde con brillo metálico usando doble fondo */
+.metal-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-fill, #ffffff), var(--bg-fill, #ffffff)) padding-box,
+    linear-gradient(135deg, #ffffff, #a1a1aa 40%, #ffffff 55%, #71717a) border-box;
+}
+.metal-border-dark {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-fill, #0a0a0a), var(--bg-fill, #0a0a0a)) padding-box,
+    linear-gradient(135deg, #71717a, #27272a 40%, #a1a1aa 55%, #27272a) border-box;
+}
+
+/* Tipografía display gigante */
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.005em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* Texto outline (contorno) para fondos */
+.outline-text {
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.14);
+  color: transparent;
+}
+.outline-text-light {
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.16);
+  color: transparent;
+}
+
+/* Rejilla sutil de fondo */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.grid-bg-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Etiqueta de sección: 01 — TÍTULO */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Tarjeta base */
+.card {
+  background: var(--color-steel-50);
+  border: 1px solid var(--color-steel-200);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  border-color: var(--color-steel-400);
+  box-shadow: 0 0 40px -18px rgba(255, 255, 255, 0.22);
+}
+.card-dark {
+  background: var(--color-steel-900);
+  border: 1px solid var(--color-steel-800);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-dark:hover {
+  border-color: var(--color-steel-500);
+  box-shadow: 0 0 40px -16px rgba(255, 255, 255, 0.18);
+}
+
+/* Animaciones */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.animate-fadeIn { animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slideUp { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.shimmer {
+  background-size: 200% auto;
+  animation: shimmer 6s linear infinite;
+}
+
+/* ---------- Animaciones al hacer scroll ---------- */
+.reveal {
+  opacity: 0;
+  transition:
+    opacity var(--reveal-duration, 700ms) cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms),
+    transform var(--reveal-duration, 700ms) cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms),
+    filter var(--reveal-duration, 700ms) ease var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal[data-variant="up"]    { transform: translate3d(0, 28px, 0); }
+.reveal[data-variant="down"]  { transform: translate3d(0, -28px, 0); }
+.reveal[data-variant="left"]  { transform: translate3d(-32px, 0, 0); }
+.reveal[data-variant="right"] { transform: translate3d(32px, 0, 0); }
+.reveal[data-variant="scale"] { transform: scale(0.94); }
+.reveal[data-variant="blur"]  { filter: blur(10px); transform: translate3d(0, 12px, 0); }
+.reveal.in { opacity: 1; transform: none; filter: none; }
+
+/* Escalonado de hijos directos */
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition:
+    opacity 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-stagger.in > * { opacity: 1; transform: none; }
+.reveal-stagger.in > *:nth-child(1)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 0); }
+.reveal-stagger.in > *:nth-child(2)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 1); }
+.reveal-stagger.in > *:nth-child(3)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 2); }
+.reveal-stagger.in > *:nth-child(4)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 3); }
+.reveal-stagger.in > *:nth-child(5)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 4); }
+.reveal-stagger.in > *:nth-child(6)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 5); }
+.reveal-stagger.in > *:nth-child(7)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 6); }
+.reveal-stagger.in > *:nth-child(8)  { transition-delay: calc(var(--reveal-stagger, 80ms) * 7); }
+.reveal-stagger.in > *:nth-child(n+9) { transition-delay: calc(var(--reveal-stagger, 80ms) * 8); }
+
+/* Hijo que entra cuando el padre .reveal está visible */
+.child-up { opacity: 0; transform: translate3d(0, 16px, 0); transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms), transform 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms); }
+.reveal.in .child-up { opacity: 1; transform: none; }
+
+/* Línea que se dibuja al entrar */
+.draw-line { transform: scaleX(0); transform-origin: left; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) 150ms; }
+.in .draw-line, .reveal.in .draw-line { transform: scaleX(1); }
+
+/* Título display que "sube" letra por bloque */
+.mask-reveal { overflow: hidden; }
+.mask-reveal > span { display: block; transform: translateY(110%); transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms); }
+.in .mask-reveal > span { transform: translateY(0); }
+
+/* Entrada inicial del hero (sin scroll) */
+@keyframes heroIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.hero-in { animation: heroIn 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.hero-in-1 { animation-delay: 80ms; }
+.hero-in-2 { animation-delay: 200ms; }
+.hero-in-3 { animation-delay: 340ms; }
+.hero-in-4 { animation-delay: 480ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-stagger > *, .mask-reveal > span, .draw-line, .hero-in, .child-up {
+    opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; animation: none !important;
+  }
+}
+
+/* ---------- Lector / PWA ---------- */
+
+/* Respeta el notch del iPhone */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Sentencia que se está narrando en modo audiolibro */
+.tts-current {
+  background: var(--color-mist);
+  color: var(--color-ink);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 0.15em;
+}
+
+/* Barra de progreso de lectura */
+.progress-track { background: var(--color-steel-200); height: 3px; width: 100%; }
+.progress-fill { background: var(--color-mist); height: 100%; transition: width 0.3s ease; }
+.progress-fill-dark { background: #ffffff; height: 100%; transition: width 0.3s ease; }
