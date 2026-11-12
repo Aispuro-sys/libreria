@@ -12,10 +12,10 @@ const RATES = [0.8, 1, 1.25, 1.5, 2];
 const KEEP_RADIUS = 8; // páginas renderizadas que se conservan alrededor de la actual
 
 /**
- * Pila vertical de páginas, UNA por scroll (snap obligatorio):
- * cada slot ocupa toda la altura del viewport y el canvas se ajusta
- * dentro. Renderizado virtualizado (IntersectionObserver) y liberación
- * de canvas lejanos para no inflar memoria.
+ * Pila vertical de páginas, UNA por gesto. El contenedor usa
+ * overflow-hidden: no hay scroll libre — cada swipe/rueda/tecla avanza
+ * exactamente una página mediante scrollTo programado. Renderizado
+ * virtualizado (IntersectionObserver) y liberación de canvas lejanos.
  */
 function ScrollPages({ doc, total, scale, containerRef, onVisiblePage, registerJump, startAt = 1 }) {
   const [box, setBox] = useState(null); // { w, h } del viewport del lector
@@ -24,6 +24,7 @@ function ScrollPages({ doc, total, scale, containerRef, onVisiblePage, registerJ
   const pendingRef = useRef(new Set());
   const epochRef = useRef(0);           // invalida renders al cambiar zoom/doc
   const currentRef = useRef(1);
+  const lockRef = useRef(false);        // bloquea gestos durante la animación
 
   // Medir el viewport del lector (ResizeObserver captura cambios de la UI)
   useEffect(() => {
@@ -35,6 +36,74 @@ function ScrollPages({ doc, total, scale, containerRef, onVisiblePage, registerJ
     ro.observe(el);
     setBox({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
+  }, [containerRef]);
+
+  const goToSlot = useCallback(
+    (n, instant = false) => {
+      const target = Math.min(Math.max(1, n), total || 1);
+      const sc = containerRef.current;
+      const el = slotsRef.current.get(target);
+      if (!sc || !el) return;
+      currentRef.current = target;
+      onVisiblePage(target);
+      lockRef.current = true;
+      sc.scrollTo({ top: el.offsetTop, behavior: instant ? "auto" : "smooth" });
+      window.setTimeout(() => { lockRef.current = false; }, instant ? 80 : 480);
+    },
+    [total, containerRef, onVisiblePage]
+  );
+  const goToSlotRef = useRef(goToSlot);
+  goToSlotRef.current = goToSlot;
+
+  // Gestos: swipe vertical u horizontal, rueda del ratón y teclas.
+  // Un gesto = una página; la animación bloquea el siguiente gesto.
+  useEffect(() => {
+    const sc = containerRef.current;
+    if (!sc) return;
+    let acc = 0, accT = 0;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - accT > 250) acc = 0; // racha nueva de rueda
+      accT = now;
+      acc += e.deltaY;
+      if (Math.abs(acc) >= 50 && !lockRef.current) {
+        goToSlotRef.current(currentRef.current + (acc > 0 ? 1 : -1));
+        acc = 0;
+      }
+    };
+    let ty = null, tx = null;
+    const onTS = (e) => { ty = e.touches[0].clientY; tx = e.touches[0].clientX; };
+    const onTE = (e) => {
+      if (ty == null || lockRef.current) { ty = tx = null; return; }
+      const dy = ty - e.changedTouches[0].clientY;
+      const dx = tx - e.changedTouches[0].clientX;
+      ty = tx = null;
+      if (Math.max(Math.abs(dy), Math.abs(dx)) < 40) return;
+      const delta = Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 1 : -1) : (dx > 0 ? 1 : -1);
+      goToSlotRef.current(currentRef.current + delta);
+    };
+    const onKey = (e) => {
+      const tag = e.target?.tagName || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) {
+        e.preventDefault();
+        goToSlotRef.current(currentRef.current + 1);
+      } else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) {
+        e.preventDefault();
+        goToSlotRef.current(currentRef.current - 1);
+      }
+    };
+    sc.addEventListener("wheel", onWheel, { passive: false });
+    sc.addEventListener("touchstart", onTS, { passive: true });
+    sc.addEventListener("touchend", onTE, { passive: true });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      sc.removeEventListener("wheel", onWheel);
+      sc.removeEventListener("touchstart", onTS);
+      sc.removeEventListener("touchend", onTE);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [containerRef]);
 
   const renderSlot = useCallback(
@@ -81,62 +150,27 @@ function ScrollPages({ doc, total, scale, containerRef, onVisiblePage, registerJ
     return () => io.disconnect();
   }, [containerRef, box, total, scale, renderSlot, clearSlot]);
 
-  // Zoom/doc: invalida lo renderizado
+  // Zoom/doc: invalida lo renderizado y realinea la página actual
   useEffect(() => {
     epochRef.current++;
     renderedRef.current.forEach((n) => clearSlot(n));
     renderedRef.current.clear();
-  }, [scale, doc, clearSlot]);
+    if (box) goToSlotRef.current(currentRef.current, true);
+  }, [scale, doc, clearSlot, box]);
 
-  // Página visible actual según posición del scroll
+  // Saltar a una página (registrado por el padre: slider, índice, TTS)
   useEffect(() => {
-    const sc = containerRef.current;
-    if (!sc) return;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const mid = sc.scrollTop + sc.clientHeight * 0.35;
-        let found = 1;
-        for (const [n, el] of slotsRef.current) {
-          if (el.offsetTop <= mid) found = n;
-          else break;
-        }
-        if (found !== currentRef.current) {
-          currentRef.current = found;
-          onVisiblePage(found);
-        }
-      });
-    };
-    sc.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => { sc.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, [containerRef, total, onVisiblePage]);
-
-  // Saltar a una página (registrado por el padre)
-  useEffect(() => {
-    registerJump((n) => {
-      const el = slotsRef.current.get(n);
-      el?.scrollIntoView({ block: "start", behavior: "auto" });
-      currentRef.current = n;
-      onVisiblePage(n);
-    });
-  }, [registerJump, onVisiblePage]);
+    registerJump((n) => goToSlotRef.current(n, true));
+  }, [registerJump]);
 
   // Posición inicial (continuar donde quedó la lectura)
   const jumpedRef = useRef(false);
   useEffect(() => {
     if (!box || jumpedRef.current || startAt <= 1) return;
     jumpedRef.current = true;
-    const t = setTimeout(() => {
-      const el = slotsRef.current.get(startAt);
-      el?.scrollIntoView({ block: "start", behavior: "auto" });
-      currentRef.current = startAt;
-      onVisiblePage(startAt);
-    }, 60);
+    const t = setTimeout(() => goToSlotRef.current(startAt, true), 60);
     return () => clearTimeout(t);
-  }, [box, startAt, onVisiblePage]);
+  }, [box, startAt]);
 
   if (!box) return null;
 
@@ -147,7 +181,7 @@ function ScrollPages({ doc, total, scale, containerRef, onVisiblePage, registerJ
           key={n}
           data-n={n}
           ref={(el) => (el ? slotsRef.current.set(n, el) : slotsRef.current.delete(n))}
-          className="relative w-full snap-start snap-always flex items-center justify-center shrink-0"
+          className="relative w-full flex items-center justify-center shrink-0"
           style={{ height: box.h }}
         >
           <canvas className="block bg-white shadow-2xl shadow-black/60" />
@@ -257,7 +291,6 @@ export default function Reader({
       const t = tts.current;
       const s = t.sentences[i];
       if (!s || !window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(s);
       const voice = pickVoice(book.lang);
       u.lang = voice?.lang || utteranceLang(book.lang);
@@ -265,6 +298,7 @@ export default function Reader({
       u.rate = t.rate;
       u.onend = () => {
         if (!t.playing) return;
+        t.retries = 0;
         const next = i + 1;
         if (next < t.sentences.length) {
           t.idx = next;
@@ -280,16 +314,42 @@ export default function Reader({
           }
         }
       };
-      u.onerror = () => { if (t.playing) stopSpeech(); };
+      u.onerror = (e) => {
+        if (!t.playing) return;
+        // 'canceled'/'interrupted' los provoca nuestro propio cancel(): ignorar
+        if (e?.error === "canceled" || e?.error === "interrupted") return;
+        // Otros errores: reintenta la frase; si falla 2 veces, salta a la siguiente
+        t.retries = (t.retries || 0) + 1;
+        setTimeout(() => {
+          if (!t.playing) return;
+          if (t.retries <= 2) speak(i);
+          else if (i + 1 < t.sentences.length) {
+            t.retries = 0;
+            t.idx = i + 1;
+            setIdx(i + 1);
+            speak(i + 1);
+          } else stopSpeech();
+        }, 350);
+      };
       t.idx = i;
       setIdx(i);
-      // iOS falla si speak() va pegado a cancel(); pequeño respiro
-      setTimeout(() => {
-        if (t.playing) window.speechSynthesis.speak(u);
-      }, 60);
+      window.speechSynthesis.speak(u);
     },
     [doc, stopSpeech, book]
   );
+
+  // Watchdog: iOS a veces suelta la cola de voz sin error; reanuda si
+  // seguimos en reproducción pero ya no suena nada
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const t = tts.current;
+      if (!t.mode || !t.playing || !window.speechSynthesis) return;
+      if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+        speak(t.idx);
+      }
+    }, 1800);
+    return () => clearInterval(iv);
+  }, [speak]);
 
   // goTo accesible desde el closure de speak
   const goToRef = useRef(goTo);
@@ -396,6 +456,8 @@ export default function Reader({
       // Pausa segura en iOS: cancelar y recordar índice
       stopSpeech();
     } else {
+      unlockTTS(); // gesto del usuario: mantiene la cola desbloqueada
+      window.speechSynthesis?.cancel();
       tts.current.playing = true;
       setPlaying(true);
       speak(tts.current.idx);
@@ -406,7 +468,10 @@ export default function Reader({
     const next = (rateIdx + 1) % RATES.length;
     setRateIdx(next);
     tts.current.rate = RATES[next];
-    if (playing) speak(tts.current.idx); // re-aplica velocidad en la frase actual
+    if (playing) {
+      window.speechSynthesis?.cancel();
+      speak(tts.current.idx); // re-aplica velocidad en la frase actual
+    }
   };
 
   // Gestos táctiles: swipe izquierda/derecha (solo modo paginado)
@@ -472,8 +537,8 @@ export default function Reader({
       {/* Área de lectura */}
       <div
         ref={scrollRef}
-        className={`flex-1 overflow-auto ${
-          viewMode === "scroll" ? "snap-y snap-mandatory" : "flex items-start justify-center py-4 px-4"
+        className={`flex-1 ${
+          viewMode === "scroll" ? "overflow-hidden" : "overflow-auto flex items-start justify-center py-4 px-4"
         }`}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -609,7 +674,9 @@ export default function Reader({
 
       {/* Panel de notas */}
       {notesOpen && (
-        <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:left-auto sm:right-0 sm:top-0 sm:w-[380px] bg-paper text-mist border-t sm:border-t-0 sm:border-l border-steel-200 shadow-2xl flex flex-col animate-slideUp max-h-[65dvh] sm:max-h-none safe-top z-10">
+        <>
+          <div className="absolute inset-0 z-20 bg-ink/50 animate-fadeIn" onClick={() => setNotesOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:left-auto sm:right-0 sm:top-0 sm:w-[380px] bg-paper text-mist border-t sm:border-t-0 sm:border-l border-steel-200 shadow-2xl flex flex-col animate-slideUp reader-sheet sm:max-h-none safe-top z-30">
           <div className="flex items-center justify-between px-4 py-3 border-b border-steel-200">
             <div className="flex items-center gap-2">
               <StickyNote className="w-4 h-4 text-mist" />
@@ -669,12 +736,15 @@ export default function Reader({
             </p>
             <NoteForm onAdd={(text) => onAddNote(book.id, String(page), text)} dark />
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Panel del índice */}
       {tocOpen && (
-        <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-auto sm:left-0 sm:top-0 sm:w-[380px] bg-paper text-mist border-t sm:border-t-0 sm:border-r border-steel-200 shadow-2xl flex flex-col animate-slideUp max-h-[65dvh] sm:max-h-none safe-top z-10">
+        <>
+          <div className="absolute inset-0 z-20 bg-ink/50 animate-fadeIn" onClick={() => setTocOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-auto sm:left-0 sm:top-0 sm:w-[380px] bg-paper text-mist border-t sm:border-t-0 sm:border-r border-steel-200 shadow-2xl flex flex-col animate-slideUp reader-sheet sm:max-h-none safe-top z-30">
           <div className="flex items-center justify-between px-4 py-3 border-b border-steel-200">
             <div className="flex items-center gap-2">
               <TableOfContents className="w-4 h-4 text-mist" />
@@ -690,9 +760,26 @@ export default function Reader({
                 Cargando índice…
               </p>
             ) : toc.length === 0 ? (
-              <p className="font-mono text-[11px] uppercase tracking-widest text-steel-500 py-4 text-center">
-                Este libro no tiene índice
-              </p>
+              <div className="px-2 py-2">
+                <p className="font-mono text-[11px] uppercase tracking-widest text-steel-500 py-3 text-center">
+                  Sin índice de capítulos — ir a página:
+                </p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => { goTo(n); setTocOpen(false); }}
+                      className={`py-2 font-mono text-[11px] border transition-colors ${
+                        n === page
+                          ? "metal text-ink border-transparent"
+                          : "border-steel-200 text-steel-500 hover:text-mist hover:border-steel-400"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
               toc.map((it, i) => (
                 <button
@@ -706,7 +793,8 @@ export default function Reader({
               ))
             )}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -253,6 +253,9 @@
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
+/* Paneles del lector: alto con fallback para iOS sin soporte dvh */
+.reader-sheet { max-height: 65vh; max-height: 65dvh; }
+
 /* Sentencia que se está narrando en modo audiolibro */
 .tts-current {
   background: var(--color-mist);
