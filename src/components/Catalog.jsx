@@ -40,6 +40,16 @@ export default function Catalog({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [source, catalog]);
 
+  // Secciones: categorías de los libros legibles en la app, con su conteo
+  const sections = useMemo(() => {
+    const map = new Map();
+    for (const b of catalog) {
+      if (b.type !== "pdf") continue;
+      map.set(b.category, (map.get(b.category) || 0) + 1);
+    }
+    return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [catalog]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return catalog.filter((b) => {
@@ -144,6 +154,28 @@ export default function Catalog({
           {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
           {totalPages > 1 && ` · página ${safePage} de ${totalPages}`}
         </p>
+      </Reveal>
+
+      {/* Secciones de libros legibles */}
+      <Reveal variant="up" delay={120} className="mb-10">
+        <div className="eyebrow text-steel-400 mb-3">Secciones</div>
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+          <button
+            className={`${chip(source === "local" && category === "all")} whitespace-nowrap`}
+            onClick={() => { setSource("local"); setCategory("all"); resetPage(); }}
+          >
+            Todas ({sections.reduce((a, [, n]) => a + n, 0)})
+          </button>
+          {sections.map(([c, n]) => (
+            <button
+              key={c}
+              className={`${chip(source === "local" && category === c)} whitespace-nowrap`}
+              onClick={() => { setSource("local"); setCategory(c); resetPage(); }}
+            >
+              {c} <span className="opacity-60">{n}</span>
+            </button>
+          ))}
+        </div>
       </Reveal>
 
       {/* Grid */}

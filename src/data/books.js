@@ -3,6 +3,7 @@
  * - type "pdf": legibles dentro de la app (lector + audiolibro + notas por página)
  * - type "link": recursos externos (se abren en el navegador)
  */
+import { SPANISH_EXTRA } from "./spanishBooks.gen";
 
 export const LOCAL_BOOKS = [
   {
@@ -383,4 +384,4 @@ export const LANGS = [
   { id: "fr", label: "Français" },
 ];
 
-export const BOOKS = [...LOCAL_BOOKS, ...EXTRA_BOOKS, ...SPANISH_BOOKS]; // todos los PDFs legibles en la app
+export const BOOKS = [...LOCAL_BOOKS, ...EXTRA_BOOKS, ...SPANISH_BOOKS, ...SPANISH_EXTRA]; // todos los PDFs legibles en la app
